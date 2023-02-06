@@ -1,0 +1,78 @@
+version: '3.9'
+
+services:
+    telescreen:
+        image: wide-vsix/telescreen:latest
+        restart: unless-stopped
+        build:
+            context: .
+        network_mode: host
+        depends_on:
+            - postgres
+        environment:
+            TELESCREEN_DEVICE: enp0s31f6
+            TELESCREEN_DB_HOST: localhost:5432
+            TELESCREEN_DB_NAME: telescreen
+            TELESCREEN_DB_USER: vsix
+            TELESCREEN_DB_PASSWORD_FILE: /run/secrets/db_password
+            TELESCREEN_STORE_RESPONSES: 'yes'
+        secrets:
+            - db_password
+
+    postgres:
+        image: postgres
+        container_name: postgres
+        restart: unless-stopped
+        ports:
+            - 5432:5432
+        networks:
+            ipv6_gw:
+            default:
+        environment:
+            POSTGRES_DB: telescreen
+            POSTGRES_USER: vsix
+            POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+            TZ: 'Asia/Tokyo'
+        secrets:
+            - db_password
+        volumes:
+            - psql:/var/lib/postgresql/data
+
+    pgadmin:
+        image: dpage/pgadmin4
+        restart: unless-stopped
+        ports:
+            - 5050:80
+        networks:
+            ipv6_gw:
+            default:
+        environment:
+            PGADMIN_DEFAULT_EMAIL: vsix@vsix.wide.ad.jp
+            PGADMIN_DEFAULT_PASSWORD: changeme
+        volumes:
+            - pgadmin:/var/lib/pgadmin
+        depends_on:
+            - postgres
+
+    grafana:
+        image: grafana/grafana-enterprise:8.2.0
+        container_name: sample_grafana
+        ports:
+            - 3000:3000
+        restart: unless-stopped
+        user: '${UID}:${GID}'
+        volumes:
+            - grafana-storage:/var/lib/grafana
+
+networks:
+    ipv6_gw:
+        external: true
+
+secrets:
+    db_password:
+        file: ./.secrets/db_password.txt
+
+volumes:
+    psql:
+    pgadmin:
+    grafana-storage:
